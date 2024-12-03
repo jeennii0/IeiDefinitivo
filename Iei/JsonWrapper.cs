@@ -6,19 +6,15 @@ using Iei.Modelos_Fuentes;
 public class JsonWrapper
 {
     // Método principal que devuelve un JSON procesado sin duplicados
-    public string GenerateProcessedJson()
+    public List<ModeloJSONOriginal> GenerateProcessedJson()
     {
         // Cargar el archivo JSON y unificar las propiedades duplicadas
         var jsonContent = LoadAndMergeJsonProperties();
 
         // Deserializar el JSON modificado
-        List<ModeloJSONOriginal> data = JsonConvert.DeserializeObject<List<ModeloJSONOriginal>>(jsonContent);
+        List<ModeloJSONOriginal> monumentosJson = JsonConvert.DeserializeObject<List<ModeloJSONOriginal>>(jsonContent);
+        return monumentosJson;
 
-        // Convertir los datos a JSON
-        string processedJson = ConvertToJson(data);
-
-        // Devolver el JSON procesado
-        return processedJson;
     }
 
     // Método para cargar y unir las propiedades duplicadas en el JSON
@@ -51,7 +47,7 @@ public class JsonWrapper
 
                             // Leer el valor
                             var currentValue = reader.Value?.ToString();
-                            Console.WriteLine($"Property: {propertyName}, Value: {currentValue}");
+                            
 
                             // Leer y unir las propiedades duplicadas
                             if (propertyName.Equals("address", StringComparison.OrdinalIgnoreCase) ||
@@ -63,13 +59,13 @@ public class JsonWrapper
                                     {
                                         // Si ya existe, unir los valores
                                         currentObject[propertyName] = currentObject[propertyName]?.ToString() + " " + currentValue;
-                                        Console.WriteLine($"Updated {propertyName}: {currentObject[propertyName]}");
+                                   
                                     }
                                     else
                                     {
                                         // Si no existe, agregar la propiedad
                                         currentObject[propertyName] = currentValue;
-                                        Console.WriteLine($"Added {propertyName}: {currentObject[propertyName]}");
+                                     
                                     }
                                 }
                             }

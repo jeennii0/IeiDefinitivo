@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Iei.Wrappers;
+using Iei.Repository;
 
 public class Program
 {
@@ -15,6 +16,8 @@ public class Program
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+
+        builder.Services.AddScoped<MonumentoService>();
 
         var app = builder.Build();
 

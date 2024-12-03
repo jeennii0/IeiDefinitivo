@@ -14,27 +14,25 @@ namespace Iei.Extractors
         {
 
         }
-        public List<MonumentoModificado> ExtractData()
+        public async Task <List<Monumento>> ExtractData(List<ModeloXMLOriginal> monumentosXml)
         {
             try
             {
-                var data = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(xmlWrapper.ConvertXmlToJson());
-                var monumentos = new List<MonumentoModificado>();
-                foreach (var monumento in data)
+                var monumentos = new List<Monumento>();
+                foreach (ModeloXMLOriginal monumento in monumentosXml)
                 {
-                    var coordenadas = monumento["Coordenadas"] as Dictionary<string, object>;
-                    var poblacion = monumento["Poblacion"] as Dictionary<string, object>;
-                    Console.WriteLine(poblacion);
-                    var nuevoMonumento = new MonumentoModificado
+                    var nuevoMonumento = new Monumento
                     {
-                        Nombre = monumento["Nombre"]?.ToString() ?? "",
-                        Direccion = monumento["Calle"]?.ToString() ?? "",
-                        CodigoPostal = monumento["CodigoPostal"]?.ToString() ?? "",
-                        Descripcion = monumento["Descripcion"]?.ToString() ?? "",
-                        Latitud = coordenadas != null && coordenadas.ContainsKey("Latitud") ? Convert.ToDouble(coordenadas["Latitud"]) : 0.0,
-                        Longitud = coordenadas != null && coordenadas.ContainsKey("Longitud") ? Convert.ToDouble(coordenadas["Longitud"]) : 0.0,
-                        Provincia = poblacion != null && poblacion.ContainsKey("Localidad") ? poblacion["Localidad"]?.ToString() : "",
-                        Localidad = poblacion != null && poblacion.ContainsKey("Localidad") ? poblacion["Localidad"]?.ToString() : "",
+                        Nombre = monumento.Nombre?.ToString() ?? "",
+                        Direccion = monumento.Calle?.ToString() ?? "",
+                        CodigoPostal = monumento.CodigoPostal?.ToString() ?? "",
+                        Descripcion = monumento.Descripcion?.ToString() ?? "",
+                        Latitud = (double)(monumento.Coordenadas?.Latitud),
+                        Longitud = (double)(monumento.Coordenadas?.Longitud),
+                        Tipo = ConvertirTipoMonumento(monumento.TipoMonumento),
+                        Localidad = new Localidad { Nombre = monumento.Poblacion.Localidad?.ToString() ?? "",
+                        Provincia = new Provincia { Nombre = monumento.Poblacion.Provincia?.ToString() ?? "" }
+                        }
                     };
                     monumentos.Add(nuevoMonumento);
                 }
@@ -45,6 +43,37 @@ namespace Iei.Extractors
                 Console.WriteLine($"Error al extraer datos del archivo: {ex.Message}");
                 return null;
             }
+        }
+
+        public string ConvertirTipoMonumento(string tipoMonumento)
+        {
+            var tipoMonumentoMap = new Dictionary<string, string>
+            {
+                { "Yacimientos arqueológico", "Yacimientos arqueológicos" },
+                { "Casa", "Edificio singular" },
+                { "Casas Nobles", "Edificio singular" },
+                { "Ermitas", "Iglesia-Ermita" },
+                { "Iglesias", "Iglesia-Ermita" },
+                { "Catedral", "Monasterio-Convento" },
+                { "Torre", "Castillo-Fortaleza-Torre" },
+                { "Muralla", "Castillo-Fortaleza-Torre" },
+                { "Castillos", "Castillo-Fortaleza-Torre" },
+                { "Puerta", "Castillo-Fortaleza-Torre" },
+                { "Palacios", "Edificio singular" },
+                { "Puentes", "Puente" },
+                { "Santuario", "Monasterio-Convento" },
+                { "Monasterios", "Monasterio-Convento" }
+            };
+
+            foreach (var key in tipoMonumentoMap.Keys)
+            {
+                if (!string.IsNullOrEmpty(tipoMonumento) && tipoMonumento.Contains(key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return tipoMonumentoMap[key];
+                }
+            }
+
+            return "Otros";
         }
     }
 }

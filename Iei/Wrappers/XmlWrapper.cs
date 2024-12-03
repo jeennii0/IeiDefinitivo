@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Xml;
 
@@ -9,7 +10,7 @@ namespace Iei.Wrappers
 {
     public class XmlWrapper
     {
-        public string ConvertXmlToJson()
+        public List<ModeloXMLOriginal> ConvertXmlToJson()
         {
                 // Obtener la ruta de la raíz del proyecto
                 string projectRoot = Directory.GetCurrentDirectory();
@@ -28,12 +29,8 @@ namespace Iei.Wrappers
 
                 // Convertir XML a un objeto de tipo ModeloXMLOriginal
                 List<ModeloXMLOriginal> monumentos = ParseMonumentosXml(xmlDoc);
-
-                // Convertir la lista de objetos a JSON
-                string json = JsonConvert.SerializeObject(monumentos, Newtonsoft.Json.Formatting.Indented);
-
-                // Devolver el JSON
-                return json;
+           
+                return monumentos;
         
         }
 
@@ -77,8 +74,8 @@ namespace Iei.Wrappers
                     CoordenadasXml coordenadas = new CoordenadasXml
                     {
                         // Verificar que los valores de latitud y longitud sean válidos
-                        Latitud = double.TryParse(coordenadasNode["latitud"]?.InnerText, out double latitud) ? latitud : 0.0,
-                        Longitud = double.TryParse(coordenadasNode["longitud"]?.InnerText, out double longitud) ? longitud : 0.0
+                        Latitud = ParseCoordenada(coordenadasNode["latitud"]?.InnerText),
+                        Longitud =ParseCoordenada(coordenadasNode["longitud"]?.InnerText)
                     };
                     monumento.Coordenadas = coordenadas;
                 }
@@ -88,6 +85,23 @@ namespace Iei.Wrappers
             }
 
             return monumentos;
+        }
+        private double ParseCoordenada(string coordenada)
+        {
+            if (string.IsNullOrWhiteSpace(coordenada))
+                return 0.0;
+
+            coordenada = new string(coordenada.Where(c => char.IsDigit(c) || c == '.' || c == ',' || c == '-').ToArray());
+
+            coordenada = coordenada.Replace(',', '.');
+
+            if (double.TryParse(coordenada, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+
+            Console.WriteLine($"Coordenada inválida: {coordenada}");
+            return 0.0;
         }
 
     }
