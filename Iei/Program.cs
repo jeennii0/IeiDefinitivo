@@ -1,7 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using System;
-using System.Reflection;
+using Iei.Wrappers;
+
 public class Program
 {
     public static void Main(string[] args)
@@ -9,18 +10,15 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         builder.Services.AddDbContext<IeiContext>(options =>
-       options
-       .UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
-        // Add services to the container.
+           options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 
         builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
         var app = builder.Build();
 
-        // Configure the HTTP request pipeline.
+        // Si estamos en desarrollo, habilitamos Swagger
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -28,11 +26,12 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-
         app.UseAuthorization();
 
+        // Habilitamos los controllers
         app.MapControllers();
 
+        // Ejecutamos la aplicación
         app.Run();
     }
 }
