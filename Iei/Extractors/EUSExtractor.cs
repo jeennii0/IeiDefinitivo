@@ -9,9 +9,9 @@ using Iei.Wrappers;
 using Newtonsoft.Json;
 namespace Iei.Extractors
 {
-    public class ExtractorJson
+    public class EUSExtractor
     {
-        public JsonWrapper jsonWrapper = new JsonWrapper();
+        public EUSWrapper jsonWrapper = new EUSWrapper();
         private GeocodingService geocodingService = new GeocodingService();
      
         public async Task<List<Monumento>> ExtractDataAsync(List<ModeloJSONOriginal> monumentosJson)

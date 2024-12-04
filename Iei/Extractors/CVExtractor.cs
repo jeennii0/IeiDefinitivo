@@ -12,16 +12,14 @@ using Iei.Models;
 
 namespace Iei.Extractors
 {
-    public class ExtractorCsv
+    public class CVExtractor
     {
-        private IWebDriver _driver;
-
-        public ExtractorCsv()
+        public CVWrapper csvWrapper = new CVWrapper();
+        public CVExtractor()
         {
-            InitializeDriver();
-        }
 
-        public async Task<List<Monumento>> ExtractData(List<ModeloCSV> monumentosCsv)
+        }
+        public async Task <List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
         {
             try
             {

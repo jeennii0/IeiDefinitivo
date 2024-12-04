@@ -1,4 +1,4 @@
-public class ModeloCSV {
+public class ModeloCSVOriginal {
     public string? Denominacion { get; set; }
     public string? Provincia { get; set; }
     public string? Municipio { get; set; }

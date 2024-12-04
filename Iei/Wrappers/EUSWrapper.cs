@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Iei.Modelos_Fuentes;
 
-public class JsonWrapper
+public class EUSWrapper
 {
     // Método principal que devuelve un JSON procesado sin duplicados
     public List<ModeloJSONOriginal> GenerateProcessedJson()
@@ -47,7 +47,7 @@ public class JsonWrapper
 
                             // Leer el valor
                             var currentValue = reader.Value?.ToString();
-                            
+
 
                             // Leer y unir las propiedades duplicadas
                             if (propertyName.Equals("address", StringComparison.OrdinalIgnoreCase) ||
@@ -59,13 +59,11 @@ public class JsonWrapper
                                     {
                                         // Si ya existe, unir los valores
                                         currentObject[propertyName] = currentObject[propertyName]?.ToString() + " " + currentValue;
-                                   
                                     }
                                     else
                                     {
                                         // Si no existe, agregar la propiedad
                                         currentObject[propertyName] = currentValue;
-                                     
                                     }
                                 }
                             }

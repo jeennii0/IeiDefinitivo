@@ -1,7 +1,8 @@
 ﻿using Iei.Extractors;
 using Iei.Modelos_Fuentes;
+using Iei.ModelosFuentesOriginales;
 using Iei.Models;
-using Iei.Repository;
+using Iei.Services;
 using Iei.Wrappers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,23 +27,23 @@ namespace Iei.Controllers
                 // Dependiendo de la fuente, obtenemos los monumentos
                 if (source.Equals("xml", StringComparison.OrdinalIgnoreCase))
                 {
-                    XmlWrapper xmlWrapper = new XmlWrapper();
+                    CLEWrapper xmlWrapper = new CLEWrapper();
                     List<ModeloXMLOriginal> xmlData = xmlWrapper.ConvertXmlToJson();
-                    ExtractorXml extractorXml = new ExtractorXml();
+                    CLEExtractor extractorXml = new CLEExtractor();
                     monumentos = await extractorXml.ExtractData(xmlData);
                 }
                 else if (source.Equals("json", StringComparison.OrdinalIgnoreCase))
                 {
-                    JsonWrapper jsonWrapper = new JsonWrapper();
+                    EUSWrapper jsonWrapper = new EUSWrapper();
                     List<ModeloJSONOriginal> jsonEus = jsonWrapper.GenerateProcessedJson();
-                    ExtractorJson extractorJson = new ExtractorJson();
+                    EUSExtractor extractorJson = new EUSExtractor();
                     monumentos = await extractorJson.ExtractDataAsync(jsonEus);
                 }
                 else if (source.Equals("csv", StringComparison.OrdinalIgnoreCase))
                 {
-                    CsvWrapper csvWrapper = new CsvWrapper();
-                    List<ModeloCSV> csvData = csvWrapper.ParseMonumentosCsv();
-                    ExtractorCsv extractorCsv = new ExtractorCsv();
+                    CVWrapper csvWrapper = new CVWrapper();
+                    List<ModeloCSVOriginal> csvData = csvWrapper.ParseMonumentosCsv();
+                    CVExtractor extractorCsv = new CVExtractor();
                     monumentos = await extractorCsv.ExtractData(csvData);
                 }
                 else
