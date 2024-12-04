@@ -2,7 +2,10 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
+using System.Web;
 using Iei.Models;
+using Iei.Services;
 using Iei.Wrappers;
 using Newtonsoft.Json;
 namespace Iei.Extractors
@@ -10,6 +13,8 @@ namespace Iei.Extractors
     public class ExtractorXml
     {
         public XmlWrapper xmlWrapper = new XmlWrapper();
+        private GeocodingService geocodingService = new GeocodingService();
+
         public ExtractorXml()
         {
 
@@ -26,7 +31,7 @@ namespace Iei.Extractors
                         Nombre = monumento.Nombre?.ToString() ?? "",
                         Direccion = monumento.Calle?.ToString() ?? "",
                         CodigoPostal = monumento.CodigoPostal?.ToString() ?? "",
-                        Descripcion = monumento.Descripcion?.ToString() ?? "",
+                        Descripcion = ProcesarDescripcion(monumento.Descripcion?.ToString() ?? "") ,
                         Latitud = (double)(monumento.Coordenadas?.Latitud),
                         Longitud = (double)(monumento.Coordenadas?.Longitud),
                         Tipo = ConvertirTipoMonumento(monumento.TipoMonumento),
@@ -34,6 +39,18 @@ namespace Iei.Extractors
                         Provincia = new Provincia { Nombre = monumento.Poblacion.Provincia?.ToString() ?? "" }
                         }
                     };
+
+                    if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
+                        || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
+                    {
+                        var (address, postcode, province, locality) = await geocodingService.GetGeocodingDetails(nuevoMonumento.Latitud, nuevoMonumento.Longitud);
+
+                        if (string.IsNullOrEmpty(nuevoMonumento.Direccion)) nuevoMonumento.Direccion = address;
+                        if (string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)) nuevoMonumento.CodigoPostal = postcode;
+                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre)) nuevoMonumento.Localidad.Nombre = locality;
+                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
+                    }
+
                     monumentos.Add(nuevoMonumento);
                 }
                 return monumentos;
@@ -74,6 +91,19 @@ namespace Iei.Extractors
             }
 
             return "Otros";
+        }
+
+        private string ProcesarDescripcion(string descripcionHtml)
+        {
+
+            if (string.IsNullOrWhiteSpace(descripcionHtml))
+                return "Desconocida";
+
+            var textoDecodificado = HttpUtility.HtmlDecode(descripcionHtml);
+            var textoLimpio = Regex.Replace(textoDecodificado, "<.*?>", string.Empty);
+
+            
+            return textoLimpio.Trim();
         }
     }
 }
