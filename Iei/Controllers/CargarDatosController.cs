@@ -17,7 +17,7 @@ namespace Iei.Controllers
         {
             _monumentoService = monumentoService;
         }
-        [HttpGet("convertir-datos")]
+        [HttpGet("")]
         public async Task<IActionResult> ConvertirYInsertarDatos([FromQuery] string source)
         {
             try
@@ -25,21 +25,21 @@ namespace Iei.Controllers
                 List<Monumento> monumentos = new List<Monumento>();
 
                 // Dependiendo de la fuente, obtenemos los monumentos
-                if (source.Equals("xml", StringComparison.OrdinalIgnoreCase))
+                if (source.Equals("CLE", StringComparison.OrdinalIgnoreCase))
                 {
                     CLEWrapper xmlWrapper = new CLEWrapper();
                     List<ModeloXMLOriginal> xmlData = xmlWrapper.ConvertXmlToJson();
                     CLEExtractor extractorXml = new CLEExtractor();
                     monumentos = await extractorXml.ExtractData(xmlData);
                 }
-                else if (source.Equals("json", StringComparison.OrdinalIgnoreCase))
+                else if (source.Equals("EUS", StringComparison.OrdinalIgnoreCase))
                 {
                     EUSWrapper jsonWrapper = new EUSWrapper();
                     List<ModeloJSONOriginal> jsonEus = jsonWrapper.GenerateProcessedJson();
                     EUSExtractor extractorJson = new EUSExtractor();
                     monumentos = await extractorJson.ExtractDataAsync(jsonEus);
                 }
-                else if (source.Equals("csv", StringComparison.OrdinalIgnoreCase))
+                else if (source.Equals("CV", StringComparison.OrdinalIgnoreCase))
                 {
                     CVWrapper csvWrapper = new CVWrapper();
                     List<ModeloCSVOriginal> csvData = csvWrapper.ParseMonumentosCsv();

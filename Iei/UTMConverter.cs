@@ -1,55 +1,91 @@
-﻿using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
+﻿using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
-using System;
-
-namespace UTMtoLatLongScraper
+using OpenQA.Selenium;
+using System.Globalization;
+namespace Convertidor
 {
-    public class UTMConverter
+    public class Convertidor
     {
-        public (double latitud, double longitud) ConvertirUTMtoLatLong(double utmEste, double utmNorte, string zonaUTM)
+        private IWebDriver driver;
+
+        // Inicializa y configura el ChromeDriver
+        public Convertidor()
         {
-            // Crear una instancia de ChromeDriver con opciones personalizadas
             ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--headless");  // Opcional: Para ejecutar sin abrir la ventana del navegador
+            options.AddArgument("--headless"); // Ejecutar en modo sin cabeza (sin ventana visible)
+            options.AddArgument("--disable-web-security");
+            options.AddArgument("--allow-running-insecure-content");
+            options.AddArgument("--disable-popup-blocking");
+            options.AddArgument("--incognito");
+            options.AddArgument("--start-maximized");
 
-            // Crear el driver (navegador)
-            using (IWebDriver driver = new ChromeDriver(options))
+            driver = new ChromeDriver(options); // Inicializa el ChromeDriver
+        }
+
+        // Método para convertir coordenadas UTM a Latitud y Longitud
+        public async Task<(double latitud, double longitud)> ConvertUTMToLatLong(string utmX, string utmY)
+        {
+            try
             {
-                // Navegar al sitio web de LatLong.net
-                driver.Navigate().GoToUrl("https://www.latlong.net/");
+                Console.WriteLine("Navegando a la página para la conversión de coordenadas...");
+                driver.Navigate().GoToUrl("https://www.ign.es/web/calculadora-geodesica");
 
-                // Esperar a que la página cargue completamente
-                WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-                wait.Until(d => d.FindElement(By.Name("utm_e")));  // Espera hasta que el campo de entrada 'utm_e' sea visible
+                // Esperar hasta que la página cargue completamente
+                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+                wait.Until(d => d.FindElement(By.Id("combo_tipo")));
 
-                // Localizar los campos de entrada para las coordenadas UTM
-                IWebElement utmEsteInput = driver.FindElement(By.Name("Latitude"));
-                IWebElement utmNorteInput = driver.FindElement(By.Name("utm_n"));
-                IWebElement zonaInput = driver.FindElement(By.Name("utm_zone"));
+                // Seleccionar el radio button para UTM
+                IWebElement radioButton = driver.FindElement(By.Id("utm"));
+                ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView(true);", radioButton);
+                Actions actions1 = new Actions(driver);
+                actions1.MoveToElement(radioButton).Click().Perform();
 
-                // Ingresar coordenadas UTM en los campos
-                utmEsteInput.Clear();
-                utmEsteInput.SendKeys(utmEste.ToString());
-                utmNorteInput.Clear();
-                utmNorteInput.SendKeys(utmNorte.ToString());
-                zonaInput.Clear();
-                zonaInput.SendKeys(zonaUTM);
+                // Introducir las coordenadas UTM
+                driver.FindElement(By.Id("datacoord1")).SendKeys(utmY);  // Coordenada Y (Norte)
+                driver.FindElement(By.Id("datacoord2")).SendKeys(utmX);  // Coordenada X (Este)
 
-                // Esperar a que los resultados se actualicen
-                wait.Until(d => d.FindElement(By.Id("lat")));
+                // Esperar hasta que el botón de conversión esté disponible
+                var waitt = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+                waitt.Until(d => d.FindElement(By.Id("trd_calc")));
 
-                // Localizar el campo donde se muestra la latitud y longitud
-                IWebElement latitudElement = driver.FindElement(By.Id("lat"));
-                IWebElement longitudElement = driver.FindElement(By.Id("lon"));
+                // Hacer clic en el botón para calcular
+                IWebElement trdCalcButton = driver.FindElement(By.Id("trd_calc"));
+                ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", trdCalcButton);
 
-                // Obtener los valores de latitud y longitud
-                double latitud = Convert.ToDouble(latitudElement.Text);
-                double longitud = Convert.ToDouble(longitudElement.Text);
+                // Esperar hasta que los valores de latitud y longitud estén disponibles
+                wait.Until(d => d.FindElement(By.Id("txt_etrs89_longd")).GetAttribute("value") != "");
 
-                // Retornar las coordenadas como una tupla
+                // Obtener las coordenadas de latitud y longitud
+                var latitudStr = driver.FindElement(By.Id("txt_etrs89_latgd")).GetAttribute("value");
+                var longitudStr = driver.FindElement(By.Id("txt_etrs89_longd")).GetAttribute("value");
+
+                // Verificar si las coordenadas fueron extraídas correctamente
+                if (string.IsNullOrEmpty(latitudStr) || string.IsNullOrEmpty(longitudStr))
+                {
+                    throw new Exception("No se pudo extraer la latitud o longitud correctamente.");
+                }
+
+                // Convertir las coordenadas a formato double
+                double latitud = Convert.ToDouble(latitudStr, CultureInfo.InvariantCulture);
+                double longitud = Convert.ToDouble(longitudStr, CultureInfo.InvariantCulture);
+
+                Console.WriteLine($"Latitud: {latitud}");
+                Console.WriteLine($"Longitud: {longitud}");
+
                 return (latitud, longitud);
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en la conversión de coordenadas UTM: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Método para cerrar el driver después de que todas las conversiones se hayan realizado
+        public void CloseDriver()
+        {
+            driver?.Quit(); // Cerrar el navegador al final de todo
         }
     }
 }

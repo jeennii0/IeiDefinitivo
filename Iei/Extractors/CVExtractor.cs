@@ -9,7 +9,10 @@ using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 using System.Threading;
 using Iei.Models;
-using UTMtoLatLongScraper;
+using  Convertidor;
+using Iei.Services;
+
+
 
 namespace Iei.Extractors
 {
@@ -17,30 +20,22 @@ namespace Iei.Extractors
     {
         public CVExtractor()
         {
-
         }
+        private GeocodingService geocodingService = new GeocodingService();
+
 
         public async Task<List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
         {
             try
             {
                 var monumentos = new List<Monumento>();
-
-                // Crear una instancia de UTMConverter para la conversión
-                UTMConverter converter = new UTMConverter();
+                var convertidor = new Convertidor.Convertidor();
 
                 foreach (var monumento in monumentosCsv)
                 {
-                    // Obtener las coordenadas UTM (asegúrate de tenerlas en tu CSV o ajusta según tus datos)
-                    double utmEste = (double)monumento.UtmEste;  // Asegúrate de que estas propiedades estén en tu modelo
-                    double utmNorte = (double)monumento.UtmNorte;
-                    string zonaUTM = monumento.Provincia; // Asegúrate de tener la zona UTM
-
-                    // Llamar a ConvertirUTMtoLatLong para obtener la latitud y longitud
-                    var coordenadas = converter.ConvertirUTMtoLatLong(utmEste, utmNorte, zonaUTM);
-
                     var nuevoMonumento = new Monumento
                     {
+                        
                         Nombre = monumento.Denominacion?.ToString() ?? "",
                         Descripcion = monumento.Clasificacion?.ToString() ?? "",
                         Tipo = ConvertirTipoMonumento(monumento.Categoria?.ToString() ?? ""),
@@ -49,13 +44,58 @@ namespace Iei.Extractors
                             Nombre = monumento.Municipio?.ToString() ?? "",
                             Provincia = new Provincia
                             {
-                                Nombre = NormalizarProvincia(monumento.Provincia?.ToString()??"")
+                                Nombre = NormalizarProvincia(monumento.Provincia?.ToString() ?? "")
                             }
                         },
-                        // Asignar las coordenadas obtenidas
-                        Latitud = coordenadas.latitud,
-                        Longitud = coordenadas.longitud
                     };
+                   
+
+                    // Validar datos UTM y llamar al conversor
+                    if (monumento.UtmEste != null && monumento.UtmNorte != null && !string.IsNullOrEmpty(monumento.Provincia))
+                    {
+                        try
+                        {
+                            // Verificar que las coordenadas sean números válidos
+                            double utmEste = (double)monumento.UtmEste;
+                            double utmNorte = (double)monumento.UtmNorte;
+
+                            // Asegurarse de que las coordenadas no son NaN o valores fuera de rango
+                            if (double.IsNaN(utmEste) || double.IsNaN(utmNorte) || utmEste == 0 || utmNorte == 0)
+                            {
+                                throw new ArgumentException("Las coordenadas UTM son inválidas.");
+                            }
+
+                            // Llamar al conversor para obtener las coordenadas en WGS84 (latitud, longitud)
+                            var coordenadas = await convertidor.ConvertUTMToLatLong(utmEste.ToString(), utmNorte.ToString());
+
+                            // Asignar las coordenadas obtenidas a las propiedades del monumento
+                            nuevoMonumento.Latitud = coordenadas.latitud;
+                            nuevoMonumento.Longitud = coordenadas.longitud;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error al convertir UTM a lat/long para el monumento {monumento.Denominacion}: {ex.Message}");
+                            nuevoMonumento.Latitud = 0;
+                            nuevoMonumento.Longitud = 0;
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Datos UTM inválidos para el monumento {monumento.Denominacion}. Asignando valores predeterminados.");
+                        nuevoMonumento.Latitud = 0;
+                        nuevoMonumento.Longitud = 0;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
+                       || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
+                    {
+                        var (address, postcode, province, locality) = await geocodingService.GetGeocodingDetails(nuevoMonumento.Latitud, nuevoMonumento.Longitud);
+
+                        if (string.IsNullOrEmpty(nuevoMonumento.Direccion)) nuevoMonumento.Direccion = address;
+                        if (string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)) nuevoMonumento.CodigoPostal = postcode;
+                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre)) nuevoMonumento.Localidad.Nombre = locality;
+                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
+                    }
 
                     // Agregar el nuevo monumento a la lista
                     monumentos.Add(nuevoMonumento);
@@ -67,10 +107,6 @@ namespace Iei.Extractors
             {
                 Console.WriteLine($"Error al extraer datos del archivo: {ex.Message}");
                 return null;
-            }
-            finally
-            {
-                // Cualquier código de limpieza si es necesario
             }
         }
 
@@ -96,21 +132,19 @@ namespace Iei.Extractors
                 ? tipoMonumentoMap[tipoMonumento]
                 : "Otros";
         }
+
         private string NormalizarProvincia(string provincia)
         {
             var provinciaMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Alicante", "Alicante" },
-            { "Aligante", "Alicante" },
-            { "Castellón", "Castellón" },
-            { "Castellon", "Castellón" },
-            { "Valencia", "Valencia" }
-        };
+            {
+                { "Alicante", "Alicante" },
+                { "Aligante", "Alicante" },
+                { "Castellón", "Castellón" },
+                { "Castellon", "Castellón" },
+                { "Valencia", "Valencia" }
+            };
 
             return provinciaMap.ContainsKey(provincia) ? provinciaMap[provincia] : provincia;
         }
-
-
-
     }
 }
