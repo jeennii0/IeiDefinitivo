@@ -1,4 +1,5 @@
-﻿using Iei.Models;
+﻿using Iei.ModelosFuentesOriginales;
+using Iei.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Xml;
 
 namespace Iei.Wrappers
 {
-    public class XmlWrapper
+    public class CLEWrapper
     {
         public List<ModeloXMLOriginal> ConvertXmlToJson()
         {
@@ -71,7 +72,7 @@ namespace Iei.Wrappers
                 XmlNode coordenadasNode = monumentoNode["coordenadas"];
                 if (coordenadasNode != null)
                 {
-                    CoordenadasXml coordenadas = new CoordenadasXml
+                    CoordenadasXML coordenadas = new CoordenadasXML
                     {
                         // Verificar que los valores de latitud y longitud sean válidos
                         Latitud = ParseCoordenada(coordenadasNode["latitud"]?.InnerText),

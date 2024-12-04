@@ -2,7 +2,7 @@
 using Iei.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Iei.Repository
+namespace Iei.Services
 {
     public class MonumentoService
     {

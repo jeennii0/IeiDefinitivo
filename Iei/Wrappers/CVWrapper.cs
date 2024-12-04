@@ -5,11 +5,11 @@ using System.Xml;
 
 namespace Iei.Wrappers
 {
-    public class CsvWrapper
+    public class CVWrapper
     {
-        public List<ModeloCSV> ParseMonumentosCsv()
+        public List<ModeloCSVOriginal> ParseMonumentosCsv()
         {
-            var modelos = new List<ModeloCSV>();
+            var modelos = new List<ModeloCSVOriginal>();
 
             string filePath = "FuentesDeDatos/bienes_inmuebles_interes_cultural.csv";
 
@@ -32,7 +32,7 @@ namespace Iei.Wrappers
                     if (columns.Length < 10)
                         continue;
 
-                    modelos.Add(new ModeloCSV
+                    modelos.Add(new ModeloCSVOriginal
                     {
                         Denominacion = columns[1],
                         Provincia = columns[2],

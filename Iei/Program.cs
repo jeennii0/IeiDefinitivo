@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Iei.Wrappers;
-using Iei.Repository;
+using Iei.Services;
 
 public class Program
 {

@@ -2,15 +2,16 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Iei.ModelosFuentesOriginales;
 using Iei.Models;
 using Iei.Wrappers;
 using Newtonsoft.Json;
 namespace Iei.Extractors
 {
-    public class ExtractorXml
+    public class CLEExtractor
     {
-        public XmlWrapper xmlWrapper = new XmlWrapper();
-        public ExtractorXml()
+        public CLEWrapper xmlWrapper = new CLEWrapper();
+        public CLEExtractor()
         {
 
         }

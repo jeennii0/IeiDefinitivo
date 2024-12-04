@@ -7,14 +7,14 @@ using Iei.Wrappers;
 using Newtonsoft.Json;
 namespace Iei.Extractors
 {
-    public class ExtractorCsv
+    public class CVExtractor
     {
-        public CsvWrapper csvWrapper = new CsvWrapper();
-        public ExtractorCsv()
+        public CVWrapper csvWrapper = new CVWrapper();
+        public CVExtractor()
         {
 
         }
-        public async Task <List<Monumento>> ExtractData(List<ModeloCSV> monumentosCsv)
+        public async Task <List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
         {
             try
             {
