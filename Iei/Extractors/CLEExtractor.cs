@@ -9,15 +9,13 @@ using Iei.Models;
 using Iei.Services;
 using Iei.Wrappers;
 using Newtonsoft.Json;
+using OpenQA.Selenium.DevTools.V129.Network;
 namespace Iei.Extractors
 {
     public class CLEExtractor
     {
-        public CLEWrapper xmlWrapper = new CLEWrapper();
-        public CLEExtractor()
-        {
+        private GeocodingService geocodingService = new GeocodingService();
 
-        }
         public async Task <List<Monumento>> ExtractData(List<ModeloXMLOriginal> monumentosXml)
         {
             try
