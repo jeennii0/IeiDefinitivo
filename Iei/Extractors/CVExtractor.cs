@@ -37,7 +37,7 @@ namespace Iei.Extractors
                             Nombre = monumento.Municipio?.ToString() ?? "",
                             Provincia = new Provincia
                             {
-                                Nombre = monumento.Provincia?.ToString() ?? ""
+                                Nombre = NormalizarProvincia(monumento.Provincia?.ToString()??"")
                             }
                         },
                         
@@ -79,8 +79,21 @@ namespace Iei.Extractors
                 ? tipoMonumentoMap[tipoMonumento]
                 : "Otros";
         }
+        private string NormalizarProvincia(string provincia)
+        {
+            var provinciaMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Alicante", "Alicante" },
+            { "Aligante", "Alicante" },
+            { "Castellón", "Castellón" },
+            { "Castellon", "Castellón" },
+            { "Valencia", "Valencia" }
+        };
 
-        
+            return provinciaMap.ContainsKey(provincia) ? provinciaMap[provincia] : provincia;
+        }
+
+
 
     }
 }
