@@ -9,6 +9,7 @@ using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 using System.Threading;
 using Iei.Models;
+using UTMtoLatLongScraper;
 
 namespace Iei.Extractors
 {
@@ -18,14 +19,25 @@ namespace Iei.Extractors
         {
 
         }
-        public async Task <List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
+
+        public async Task<List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
         {
             try
             {
                 var monumentos = new List<Monumento>();
+
+                // Crear una instancia de UTMConverter para la conversión
+                UTMConverter converter = new UTMConverter();
+
                 foreach (var monumento in monumentosCsv)
                 {
-                    
+                    // Obtener las coordenadas UTM (asegúrate de tenerlas en tu CSV o ajusta según tus datos)
+                    double utmEste = (double)monumento.UtmEste;  // Asegúrate de que estas propiedades estén en tu modelo
+                    double utmNorte = (double)monumento.UtmNorte;
+                    string zonaUTM = monumento.Provincia; // Asegúrate de tener la zona UTM
+
+                    // Llamar a ConvertirUTMtoLatLong para obtener la latitud y longitud
+                    var coordenadas = converter.ConvertirUTMtoLatLong(utmEste, utmNorte, zonaUTM);
 
                     var nuevoMonumento = new Monumento
                     {
@@ -40,10 +52,15 @@ namespace Iei.Extractors
                                 Nombre = monumento.Provincia?.ToString() ?? ""
                             }
                         },
-                        
+                        // Asignar las coordenadas obtenidas
+                        Latitud = coordenadas.latitud,
+                        Longitud = coordenadas.longitud
                     };
+
+                    // Agregar el nuevo monumento a la lista
                     monumentos.Add(nuevoMonumento);
                 }
+
                 return monumentos;
             }
             catch (Exception ex)
@@ -53,7 +70,7 @@ namespace Iei.Extractors
             }
             finally
             {
-             
+                // Cualquier código de limpieza si es necesario
             }
         }
 
@@ -79,8 +96,5 @@ namespace Iei.Extractors
                 ? tipoMonumentoMap[tipoMonumento]
                 : "Otros";
         }
-
-        
-
     }
 }

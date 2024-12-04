@@ -5,26 +5,26 @@ using System;
 
 namespace UTMtoLatLongScraper
 {
-    public class Scrapper
+    public class UTMConverter
     {
         public (double latitud, double longitud) ConvertirUTMtoLatLong(double utmEste, double utmNorte, string zonaUTM)
         {
-            // Ruta al chromedriver (asegúrate de poner la ruta correcta)
-            string driverPath = @"C:\drivers\chromedriver\chromedriver.exe";
-
-            // Inicializar el navegador Chrome
+            // Crear una instancia de ChromeDriver con opciones personalizadas
             ChromeOptions options = new ChromeOptions();
-            using (IWebDriver driver = new ChromeDriver(driverPath, options))
+            options.AddArgument("--headless");  // Opcional: Para ejecutar sin abrir la ventana del navegador
+
+            // Crear el driver (navegador)
+            using (IWebDriver driver = new ChromeDriver(options))
             {
                 // Navegar al sitio web de LatLong.net
-                driver.Navigate().GoToUrl("https://www.latlong.net/convert-utm-to-lat-long.html");
+                driver.Navigate().GoToUrl("https://www.latlong.net/");
 
                 // Esperar a que la página cargue completamente
                 WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-                wait.Until(d => d.FindElement(By.Name("utm_e")));
+                wait.Until(d => d.FindElement(By.Name("utm_e")));  // Espera hasta que el campo de entrada 'utm_e' sea visible
 
                 // Localizar los campos de entrada para las coordenadas UTM
-                IWebElement utmEsteInput = driver.FindElement(By.Name("utm_e"));
+                IWebElement utmEsteInput = driver.FindElement(By.Name("Latitude"));
                 IWebElement utmNorteInput = driver.FindElement(By.Name("utm_n"));
                 IWebElement zonaInput = driver.FindElement(By.Name("utm_zone"));
 
