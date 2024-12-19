@@ -25,7 +25,6 @@ namespace Iei.Services
 
                     if (monumentoExistente != null)
                     {
-                        // Si existe, continuar con el siguiente monumento
                         continue;
                     }
 

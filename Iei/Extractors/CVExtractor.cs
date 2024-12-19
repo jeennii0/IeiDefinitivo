@@ -9,121 +9,151 @@ using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 using System.Threading;
 using Iei.Models;
-using  Convertidor;
+using Convertidor;
 using Iei.Services;
-
-
+using Iei.Extractors.ValidacionMonumentos;
 
 namespace Iei.Extractors
 {
     public class CVExtractor
     {
-        public CVExtractor()
-        {
-        }
-        private GeocodingService geocodingService = new GeocodingService();
+        public CVExtractor() { }
 
+        private GeocodingService geocodingService = new GeocodingService();
 
         public async Task<List<Monumento>> ExtractData(List<ModeloCSVOriginal> monumentosCsv)
         {
-            try
+            var monumentos = new List<Monumento>();
+            var convertidor = new Convertidor.Convertidor();
+
+            foreach (var monumento in monumentosCsv)
             {
-                var monumentos = new List<Monumento>();
-                var convertidor = new Convertidor.Convertidor();
+                if (!ValidarDatosIniciales(monumento)) continue;
 
-                foreach (var monumento in monumentosCsv)
+                var nuevoMonumento = new Monumento
                 {
-                    // Validar que la denominación, las coordenadas y la provincia estén presentes
-                    if (string.IsNullOrWhiteSpace(monumento.Denominacion) || 
-                          string.IsNullOrWhiteSpace(monumento.Clasificacion) )
+                    Nombre = monumento.Denominacion,
+                    Descripcion = monumento.Clasificacion,
+                    Tipo = ConvertirTipoMonumento(monumento.Categoria),
+                    Localidad = new Localidad
                     {
-                        Console.WriteLine($"Datos incompletos para el monumento {monumento.Denominacion}. Saltando este monumento.");
-                        continue; // Saltar al siguiente monumento si falta información clave
-                    }
-
-                    // Normalizar la provincia
-                    var provinciaNormalizada = NormalizarProvincia(monumento.Provincia?.ToString() ?? "");
-
-                    if (string.IsNullOrEmpty(provinciaNormalizada))
-                    {
-                        Console.WriteLine($"Provincia no válida para el monumento {monumento.Denominacion}. Saltando este monumento.");
-                        continue; // Saltar al siguiente monumento si la provincia no es válida
-                    }
-
-                    var nuevoMonumento = new Monumento
-                    {
-                        Nombre = monumento.Denominacion?.ToString() ?? "",
-                        Descripcion = monumento.Clasificacion?.ToString() ?? "",
-                        Tipo = ConvertirTipoMonumento(monumento.Categoria?.ToString() ?? ""),
-                        Localidad = new Localidad
+                        Nombre = monumento.Municipio,
+                        Provincia = new Provincia
                         {
-                            Nombre = monumento.Municipio?.ToString() ?? "",
-                            Provincia = new Provincia
-                            {
-                                Nombre = provinciaNormalizada
-                            }
-                        },
-                    };
-
-                    // Validar datos UTM y llamar al conversor
-                    if (monumento.UtmEste != null && monumento.UtmNorte != null && !string.IsNullOrEmpty(monumento.Provincia))
-                    {
-                        try
-                        {
-                            // Verificar que las coordenadas sean números válidos
-                            double utmEste = (double)monumento.UtmEste;
-                            double utmNorte = (double)monumento.UtmNorte;
-
-                            // Asegurarse de que las coordenadas no son NaN o valores fuera de rango
-                            if (double.IsNaN(utmEste) || double.IsNaN(utmNorte) || utmEste == 0 || utmNorte == 0)
-                            {
-                                throw new ArgumentException("Las coordenadas UTM son inválidas.");
-                            }
-
-                            // Llamar al conversor para obtener las coordenadas en WGS84 (latitud, longitud)
-                            var coordenadas = await convertidor.ConvertUTMToLatLong(utmEste.ToString(), utmNorte.ToString());
-
-                            // Asignar las coordenadas obtenidas a las propiedades del monumento
-                            nuevoMonumento.Latitud = coordenadas.latitud;
-                            nuevoMonumento.Longitud = coordenadas.longitud;
-                        }
-                        catch (Exception ex)
-                        {
-                            // Si ocurre un error en la conversión, logueamos el error pero seguimos con el siguiente monumento.
-                            Console.WriteLine($"Error al convertir UTM a lat/long para el monumento {monumento.Denominacion}: {ex.Message}");
-                            continue; // Saltar al siguiente monumento
+                            Nombre = NormalizarProvincia(monumento.Provincia)
                         }
                     }
-                    else
-                    {
-                        Console.WriteLine($"Datos UTM inválidos para el monumento {monumento.Denominacion}. Asignando valores predeterminados.");
-                        continue; // Saltar al siguiente monumento
-                    }
+                };
 
-                    // Si la dirección o el código postal no están definidos, realizamos una búsqueda de geocodificación
-                    if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
-                       || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
-                    {
-                        var (address, postcode, province, locality) = await geocodingService.GetGeocodingDetails(nuevoMonumento.Latitud, nuevoMonumento.Longitud);
+                if (!await AsignarCoordenadasAsync(nuevoMonumento, monumento, convertidor)) continue;
 
-                        if (string.IsNullOrEmpty(nuevoMonumento.Direccion)) nuevoMonumento.Direccion = address;
-                        if (string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)) nuevoMonumento.CodigoPostal = postcode;
-                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre)) nuevoMonumento.Localidad.Nombre = locality;
-                        if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
-                    }
-
-                    // Agregar el nuevo monumento a la lista
-                    monumentos.Add(nuevoMonumento);
+                // Si la dirección, código postal, localidad o provincia están vacíos o nulos, intenta asignarlos mediante geocodificación
+                if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)
+                    || string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre) || string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre))
+                {
+                    await AsignarGeocodificacionAsync(nuevoMonumento);
                 }
 
-                return monumentos;
+                // Validar código postal
+                if (!ValidacionesMonumentos.EsCodigoPostalValido(nuevoMonumento.CodigoPostal))
+                {
+                    Console.WriteLine($"Código postal no válido para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
+                    continue; // Si el código postal es inválido, saltamos este monumento
+                }
+
+                // Validar la localidad
+                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre))
+                {
+                    Console.WriteLine($"Datos incompletos para la localidad del monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
+                    continue; // Si la localidad está vacía, saltamos este monumento
+                }
+
+                // Validar la provincia
+                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre))
+                {
+                    Console.WriteLine($"Datos incompletos para la provincia del monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
+                    continue; // Si la provincia está vacía, saltamos este monumento
+                }
+
+                // Si todo está validado correctamente, agregamos el monumento a la lista
+                monumentos.Add(nuevoMonumento);
+            }
+
+            return monumentos; 
+        }
+
+        private bool ValidarDatosIniciales(ModeloCSVOriginal monumento)
+        {
+            if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.Denominacion, monumento.Clasificacion))
+            {
+                Console.WriteLine($"Datos incompletos para el monumento {monumento.Denominacion}. Saltando este monumento.");
+                return false;
+            }
+
+            var provinciaNormalizada = NormalizarProvincia(monumento.Provincia?.ToString() ?? "");
+            if (string.IsNullOrEmpty(provinciaNormalizada))
+            {
+                Console.WriteLine($"Provincia no válida para el monumento {monumento.Denominacion}. Saltando este monumento.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> AsignarCoordenadasAsync(Monumento nuevoMonumento, ModeloCSVOriginal monumento, Convertidor.Convertidor convertidor)
+        {
+            try
+            {
+                if (!ValidacionesMonumentos.EsCoordenadaUtmValida(monumento.UtmEste, monumento.UtmNorte))
+                {
+                    Console.WriteLine($"Datos UTM inválidos para el monumento {monumento.Denominacion}.");
+                    return false;
+                }
+
+                var coordenadas = await convertidor.ConvertUTMToLatLong(monumento.UtmEste.ToString(), monumento.UtmNorte.ToString());
+                nuevoMonumento.Latitud = coordenadas.latitud;
+                nuevoMonumento.Longitud = coordenadas.longitud;
+
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al extraer datos del archivo: {ex.Message}");
-                return null;
+                Console.WriteLine($"Error al convertir UTM a lat/long para el monumento {monumento.Denominacion}: {ex.Message}");
+                return false;
             }
         }
+
+        private async Task AsignarGeocodificacionAsync(Monumento nuevoMonumento)
+        {
+            try
+            {
+                var (address, postcode, province, locality) = await geocodingService.GetGeocodingDetails(nuevoMonumento.Latitud, nuevoMonumento.Longitud);
+
+                if (string.IsNullOrEmpty(address) || string.IsNullOrEmpty(postcode))
+                {
+                    Console.WriteLine("La API de geocodificación no ha devuelto una dirección válida.");
+                }
+
+                nuevoMonumento.Direccion = address ?? "";
+                nuevoMonumento.CodigoPostal = postcode ?? "";
+                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre) && !string.IsNullOrEmpty(locality))
+                {
+                    nuevoMonumento.Localidad.Nombre = locality;
+                }
+
+                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre) && !string.IsNullOrEmpty(province))
+                {
+                    nuevoMonumento.Localidad.Provincia.Nombre = province;
+                }
+
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en la geocodificación: {ex.Message}");
+            }
+        }
+
 
         public string ConvertirTipoMonumento(string tipoMonumento)
         {
@@ -154,7 +184,10 @@ namespace Iei.Extractors
             {
                 { "Alicante", "Alicante" },
                 { "Castellón", "Castellón" },
-                { "Valencia", "Valencia" }
+                { "Valencia", "Valencia" },
+                { "Alacant", "Alicante" },
+                { "Castellon", "Castellón" },
+                { "València ", "Valencia" }
             };
 
             return provinciaMap.ContainsKey(provincia) ? provinciaMap[provincia] : "";

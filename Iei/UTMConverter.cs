@@ -70,8 +70,6 @@ namespace Convertidor
                 double latitud = Convert.ToDouble(latitudStr, CultureInfo.InvariantCulture);
                 double longitud = Convert.ToDouble(longitudStr, CultureInfo.InvariantCulture);
 
-                Console.WriteLine($"Latitud: {latitud}");
-                Console.WriteLine($"Longitud: {longitud}");
 
                 return (latitud, longitud);
             }
