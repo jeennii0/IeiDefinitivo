@@ -13,7 +13,6 @@ namespace Iei.Services
         public async Task<(string Address, string Postcode, string Province, string Locality)> GetGeocodingDetails(double latitud, double longitud)
         {
             string url = $"https://api.opencagedata.com/geocode/v1/json?q={latitud}%2C{longitud}&key={_apiKey}";
-            Console.WriteLine($"URL de solicitud: {url}");
             try
             {
                 using (HttpClient client = new HttpClient())
@@ -23,10 +22,6 @@ namespace Iei.Services
                     if (response.IsSuccessStatusCode)
                     {
                         string responseBody = await response.Content.ReadAsStringAsync();
-
-
-                        Console.WriteLine("JSON de la respuesta:");
-                        Console.WriteLine(responseBody);
 
                         JObject jsonResponse = JObject.Parse(responseBody);
 
