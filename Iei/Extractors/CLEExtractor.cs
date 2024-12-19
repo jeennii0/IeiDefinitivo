@@ -10,6 +10,8 @@ using Iei.Services;
 using Iei.Wrappers;
 using Newtonsoft.Json;
 using OpenQA.Selenium.DevTools.V129.Network;
+using Iei.Extractors.ValidacionMonumentos;
+
 namespace Iei.Extractors
 {
     public class CLEExtractor
@@ -37,6 +39,8 @@ namespace Iei.Extractors
                         }
                     };
 
+                    if (!ValidarDatosIniciales(nuevoMonumento)) continue;
+
                     if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
                         || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
                     {
@@ -46,6 +50,19 @@ namespace Iei.Extractors
                         if (string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)) nuevoMonumento.CodigoPostal = postcode;
                         if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre)) nuevoMonumento.Localidad.Nombre = locality;
                         if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
+                    }
+
+                    if (!ValidacionesMonumentos.EsCodigoPostalValido(nuevoMonumento.CodigoPostal))
+                    {
+                        Console.WriteLine($"No hay código postal válido para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
+                        continue;
+                    }
+
+                    // Validar dirección y localidad
+                    if (!ValidacionesMonumentos.EsMonumentoDireccionValido(nuevoMonumento.Direccion, nuevoMonumento.Localidad.Nombre, nuevoMonumento.Localidad.Provincia.Nombre))
+                    {
+                        Console.WriteLine($"Datos inválidos para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
+                        continue;
                     }
 
                     monumentos.Add(nuevoMonumento);
@@ -59,6 +76,20 @@ namespace Iei.Extractors
             }
         }
 
+        private bool ValidarDatosIniciales(Monumento monumento)
+        {
+            if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.Nombre, monumento.Descripcion)
+                || !ValidacionesMonumentos.ValidarCoordenadas(monumento.Latitud, monumento.Longitud)
+                )
+            {
+                Console.WriteLine($"Datos incompletos para el monumento {monumento.Nombre}. Saltando este monumento.");
+                return false;
+            }
+
+
+
+            return true;
+        }
         public string ConvertirTipoMonumento(string tipoMonumento)
         {
             var tipoMonumentoMap = new Dictionary<string, string>

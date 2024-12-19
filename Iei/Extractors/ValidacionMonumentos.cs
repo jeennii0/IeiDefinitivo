@@ -9,10 +9,10 @@ namespace Iei.Extractors.ValidacionMonumentos
             return System.Text.RegularExpressions.Regex.IsMatch(codigoPostal, @"^\d{5}$");
         }
 
-        public static bool EsMonumentoInicialValido(string nombre, string tipo)
+        public static bool EsMonumentoInicialValido(string nombre, string descripcion)
         {
             return !string.IsNullOrWhiteSpace(nombre) &&
-                   !string.IsNullOrWhiteSpace(tipo);
+                   !string.IsNullOrWhiteSpace(descripcion);
         }
 
         public static bool EsCoordenadaUtmValida(double? utmEste, double? utmNorte)
@@ -22,10 +22,22 @@ namespace Iei.Extractors.ValidacionMonumentos
                    utmEste.Value != 0 && utmNorte.Value != 0;
         }
 
-        public static bool EsLocalidadDatosValido(string nombreLocalidad, string nombreProvincia)
-        {
-            return !string.IsNullOrWhiteSpace(nombreLocalidad) && !string.IsNullOrWhiteSpace(nombreProvincia);
-        }
-    }
+        
+            // Cambia el método a estático
+            public static bool ValidarCoordenadas(double latitud, double longitud)
+            {
+                // Lógica de validación de coordenadas
+                return latitud >= -90 && latitud <= 90 && longitud >= -180 && longitud <= 180;
+            }
+        
 
-}
+
+        public static bool EsMonumentoDireccionValido(string direccion, string localidad, string provincia)
+        {
+            return !string.IsNullOrWhiteSpace(direccion) &&
+                   !string.IsNullOrWhiteSpace(localidad) &&
+                   !string.IsNullOrWhiteSpace(provincia);
+        }
+
+    }
+    }
