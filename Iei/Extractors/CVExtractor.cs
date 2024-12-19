@@ -33,9 +33,25 @@ namespace Iei.Extractors
 
                 foreach (var monumento in monumentosCsv)
                 {
+                    // Validar que la denominación, las coordenadas y la provincia estén presentes
+                    if (string.IsNullOrWhiteSpace(monumento.Denominacion) || 
+                          string.IsNullOrWhiteSpace(monumento.Clasificacion) )
+                    {
+                        Console.WriteLine($"Datos incompletos para el monumento {monumento.Denominacion}. Saltando este monumento.");
+                        continue; // Saltar al siguiente monumento si falta información clave
+                    }
+
+                    // Normalizar la provincia
+                    var provinciaNormalizada = NormalizarProvincia(monumento.Provincia?.ToString() ?? "");
+
+                    if (string.IsNullOrEmpty(provinciaNormalizada))
+                    {
+                        Console.WriteLine($"Provincia no válida para el monumento {monumento.Denominacion}. Saltando este monumento.");
+                        continue; // Saltar al siguiente monumento si la provincia no es válida
+                    }
+
                     var nuevoMonumento = new Monumento
                     {
-                        
                         Nombre = monumento.Denominacion?.ToString() ?? "",
                         Descripcion = monumento.Clasificacion?.ToString() ?? "",
                         Tipo = ConvertirTipoMonumento(monumento.Categoria?.ToString() ?? ""),
@@ -44,11 +60,10 @@ namespace Iei.Extractors
                             Nombre = monumento.Municipio?.ToString() ?? "",
                             Provincia = new Provincia
                             {
-                                Nombre = NormalizarProvincia(monumento.Provincia?.ToString() ?? "")
+                                Nombre = provinciaNormalizada
                             }
                         },
                     };
-                   
 
                     // Validar datos UTM y llamar al conversor
                     if (monumento.UtmEste != null && monumento.UtmNorte != null && !string.IsNullOrEmpty(monumento.Provincia))
@@ -74,18 +89,18 @@ namespace Iei.Extractors
                         }
                         catch (Exception ex)
                         {
+                            // Si ocurre un error en la conversión, logueamos el error pero seguimos con el siguiente monumento.
                             Console.WriteLine($"Error al convertir UTM a lat/long para el monumento {monumento.Denominacion}: {ex.Message}");
-                            nuevoMonumento.Latitud = 0;
-                            nuevoMonumento.Longitud = 0;
+                            continue; // Saltar al siguiente monumento
                         }
                     }
                     else
                     {
                         Console.WriteLine($"Datos UTM inválidos para el monumento {monumento.Denominacion}. Asignando valores predeterminados.");
-                        nuevoMonumento.Latitud = 0;
-                        nuevoMonumento.Longitud = 0;
+                        continue; // Saltar al siguiente monumento
                     }
 
+                    // Si la dirección o el código postal no están definidos, realizamos una búsqueda de geocodificación
                     if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
                        || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
                     {
@@ -138,13 +153,11 @@ namespace Iei.Extractors
             var provinciaMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Alicante", "Alicante" },
-                { "Aligante", "Alicante" },
                 { "Castellón", "Castellón" },
-                { "Castellon", "Castellón" },
                 { "Valencia", "Valencia" }
             };
 
-            return provinciaMap.ContainsKey(provincia) ? provinciaMap[provincia] : provincia;
+            return provinciaMap.ContainsKey(provincia) ? provinciaMap[provincia] : "";
         }
     }
 }

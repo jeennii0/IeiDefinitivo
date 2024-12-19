@@ -24,10 +24,6 @@ namespace Iei.Services
                     {
                         string responseBody = await response.Content.ReadAsStringAsync();
 
-
-                        Console.WriteLine("JSON de la respuesta:");
-                        Console.WriteLine(responseBody);
-
                         JObject jsonResponse = JObject.Parse(responseBody);
 
                         var result = jsonResponse["results"]?[0];
