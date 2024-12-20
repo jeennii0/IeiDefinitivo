@@ -18,7 +18,7 @@ namespace Iei.Extractors
     {
         private GeocodingService geocodingService = new GeocodingService();
 
-        public async Task <List<Monumento>> ExtractData(List<ModeloXMLOriginal> monumentosXml)
+        public async Task<List<Monumento>> ExtractData(List<ModeloXMLOriginal> monumentosXml)
         {
             try
             {
@@ -30,19 +30,31 @@ namespace Iei.Extractors
                         Nombre = monumento.Nombre?.ToString() ?? "",
                         Direccion = monumento.Calle?.ToString() ?? "",
                         CodigoPostal = monumento.CodigoPostal?.ToString() ?? "",
-                        Descripcion = ProcesarDescripcion(monumento.Descripcion?.ToString() ?? "") ,
+                        Descripcion = ProcesarDescripcion(monumento.Descripcion?.ToString() ?? ""),
                         Latitud = (double)(monumento.Coordenadas?.Latitud),
                         Longitud = (double)(monumento.Coordenadas?.Longitud),
                         Tipo = ConvertirTipoMonumento(monumento.TipoMonumento),
-                        Localidad = new Localidad { Nombre = monumento.Poblacion.Localidad?.ToString() ?? "",
-                        Provincia = new Provincia { Nombre = monumento.Poblacion.Provincia?.ToString() ?? "" }
+                        Localidad = new Localidad
+                        {
+                            Nombre = monumento.Poblacion.Localidad?.ToString() ?? "",
+                            Provincia = new Provincia
+                            {
+                                Nombre = monumento.Poblacion.Provincia?.ToString() ?? ""
+                            }
                         }
                     };
 
-                    if (!ValidarDatosIniciales(nuevoMonumento)) continue;
+                    // Validar nombre y descripción
+                    if (!ValidacionesMonumentos.EsMonumentoInicialValido(nuevoMonumento.Nombre, nuevoMonumento.Descripcion)) continue;
 
-                    if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal)
-                        || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) || string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
+                    // Validar coordenadas geográficas
+                    if (!ValidacionesMonumentos.ValidarCoordenadas(nuevoMonumento.Latitud, nuevoMonumento.Longitud)) continue;
+
+                    // Completar datos faltantes con geocodificación
+                    if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) ||
+                        string.IsNullOrWhiteSpace(nuevoMonumento.CodigoPostal) ||
+                        string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Nombre) ||
+                        string.IsNullOrWhiteSpace(nuevoMonumento.Localidad.Provincia.Nombre))
                     {
                         var (address, postcode, province, locality) = await geocodingService.GetGeocodingDetails(nuevoMonumento.Latitud, nuevoMonumento.Longitud);
 
@@ -52,19 +64,20 @@ namespace Iei.Extractors
                         if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
                     }
 
-                    if (!ValidacionesMonumentos.EsCodigoPostalValido(nuevoMonumento.CodigoPostal))
-                    {
-                        Console.WriteLine($"No hay código postal válido para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
-                        continue;
-                    }
+                    // Corregir el código postal si es de 4 dígitos
+                    nuevoMonumento.CodigoPostal = ValidacionesMonumentos.CompletarCodigoPostal(nuevoMonumento.CodigoPostal);
 
-                    // Validar dirección y localidad
-                    if (!ValidacionesMonumentos.EsMonumentoDireccionValido(nuevoMonumento.Direccion, nuevoMonumento.Localidad.Nombre, nuevoMonumento.Localidad.Provincia.Nombre))
-                    {
-                        Console.WriteLine($"Datos inválidos para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
-                        continue;
-                    }
+                    // Validar dirección y código postal
+                    string localidad = nuevoMonumento.Localidad.Nombre;
+                    string provincia = nuevoMonumento.Localidad.Provincia.Nombre;
+                    if (!ValidacionesMonumentos.SonDatosDireccionValidos(nuevoMonumento.Nombre, nuevoMonumento.CodigoPostal, nuevoMonumento.Direccion, localidad, provincia)) continue;
 
+                    // Validar códigos postales específicos de Castilla y León
+                    if (!ValidacionesMonumentos.EsCodigoPostalCorrectoParaRegion(nuevoMonumento.CodigoPostal, "CLE")) {
+                        Console.WriteLine($"Se descarta el monumento '{nuevoMonumento.Nombre}': el código postal '{nuevoMonumento.CodigoPostal}' no es válido para Castilla y León."); 
+                        continue; }
+
+                    // Si todas las validaciones pasan, añadir el monumento a la lista final
                     monumentos.Add(nuevoMonumento);
                 }
                 return monumentos;
@@ -76,20 +89,7 @@ namespace Iei.Extractors
             }
         }
 
-        private bool ValidarDatosIniciales(Monumento monumento)
-        {
-            if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.Nombre, monumento.Descripcion)
-                || !ValidacionesMonumentos.ValidarCoordenadas(monumento.Latitud, monumento.Longitud)
-                )
-            {
-                Console.WriteLine($"Datos incompletos para el monumento {monumento.Nombre}. Saltando este monumento.");
-                return false;
-            }
 
-
-
-            return true;
-        }
         public string ConvertirTipoMonumento(string tipoMonumento)
         {
             var tipoMonumentoMap = new Dictionary<string, string>

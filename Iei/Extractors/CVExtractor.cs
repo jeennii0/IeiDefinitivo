@@ -1,17 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
-using SeleniumExtras.WaitHelpers;
-using System.Threading;
 using Iei.Models;
+using Iei.Extractors.ValidacionMonumentos;
 using Convertidor;
 using Iei.Services;
-using Iei.Extractors.ValidacionMonumentos;
 
 namespace Iei.Extractors
 {
@@ -28,7 +21,7 @@ namespace Iei.Extractors
 
             foreach (var monumento in monumentosCsv)
             {
-                if (!ValidarDatosIniciales(monumento)) continue;
+                if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.Denominacion, monumento.Clasificacion)) continue;
 
                 var nuevoMonumento = new Monumento
                 {
@@ -45,59 +38,41 @@ namespace Iei.Extractors
                     }
                 };
 
+                // Validación de la provincia
+                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre))
+                {
+                    Console.WriteLine($"Se descarta el monumento '{nuevoMonumento.Nombre}': la provincia está vacía.");
+                    continue;
+                }
+
+                // Asignar coordenadas si están disponibles
                 if (!await AsignarCoordenadasAsync(nuevoMonumento, monumento, convertidor)) continue;
 
-                // Si la dirección, código postal, localidad o provincia están vacíos o nulos, intenta asignarlos mediante geocodificación
+                // Intentar asignar los datos de dirección mediante geocodificación si están vacíos
                 if (string.IsNullOrWhiteSpace(nuevoMonumento.Direccion) || string.IsNullOrEmpty(nuevoMonumento.CodigoPostal)
                     || string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre) || string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre))
                 {
                     await AsignarGeocodificacionAsync(nuevoMonumento);
                 }
 
-                // Validar código postal
-                if (!ValidacionesMonumentos.EsCodigoPostalValido(nuevoMonumento.CodigoPostal))
-                {
-                    Console.WriteLine($"Código postal no válido para el monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
-                    continue; // Si el código postal es inválido, saltamos este monumento
-                }
+                string provincia = nuevoMonumento.Localidad.Provincia.Nombre;
+                string localidad = nuevoMonumento.Localidad.Nombre;
 
-                // Validar la localidad
-                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Nombre))
-                {
-                    Console.WriteLine($"Datos incompletos para la localidad del monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
-                    continue; // Si la localidad está vacía, saltamos este monumento
-                }
+                // Validar la dirección y código postal
+                if (!ValidacionesMonumentos.SonDatosDireccionValidos(nuevoMonumento.Nombre, nuevoMonumento.CodigoPostal, nuevoMonumento.Direccion, localidad, provincia)) continue;
 
-                // Validar la provincia
-                if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre))
+                // Validar si el código postal es correcto para la Comunidad Valenciana
+                if (!ValidacionesMonumentos.EsCodigoPostalCorrectoParaRegion(nuevoMonumento.CodigoPostal, "CV"))
                 {
-                    Console.WriteLine($"Datos incompletos para la provincia del monumento {nuevoMonumento.Nombre}. Saltando este monumento.");
-                    continue; // Si la provincia está vacía, saltamos este monumento
+                    Console.WriteLine($"Se descarta el monumento '{nuevoMonumento.Nombre}': el código postal '{nuevoMonumento.CodigoPostal}' no es válido para la Comunidad Valenciana.");
+                    continue;
                 }
 
                 // Si todo está validado correctamente, agregamos el monumento a la lista
                 monumentos.Add(nuevoMonumento);
             }
 
-            return monumentos; 
-        }
-
-        private bool ValidarDatosIniciales(ModeloCSVOriginal monumento)
-        {
-            if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.Denominacion, monumento.Clasificacion))
-            {
-                Console.WriteLine($"Datos incompletos para el monumento {monumento.Denominacion}. Saltando este monumento.");
-                return false;
-            }
-
-            var provinciaNormalizada = NormalizarProvincia(monumento.Provincia?.ToString() ?? "");
-            if (string.IsNullOrEmpty(provinciaNormalizada))
-            {
-                Console.WriteLine($"Provincia no válida para el monumento {monumento.Denominacion}. Saltando este monumento.");
-                return false;
-            }
-
-            return true;
+            return monumentos;
         }
 
         private async Task<bool> AsignarCoordenadasAsync(Monumento nuevoMonumento, ModeloCSVOriginal monumento, Convertidor.Convertidor convertidor)
@@ -106,7 +81,6 @@ namespace Iei.Extractors
             {
                 if (!ValidacionesMonumentos.EsCoordenadaUtmValida(monumento.UtmEste, monumento.UtmNorte))
                 {
-                    Console.WriteLine($"Datos UTM inválidos para el monumento {monumento.Denominacion}.");
                     return false;
                 }
 
@@ -131,6 +105,7 @@ namespace Iei.Extractors
 
                 if (string.IsNullOrEmpty(address) || string.IsNullOrEmpty(postcode))
                 {
+                    Console.WriteLine($"La direccion es {address} y el codigo postal {postcode}");
                     Console.WriteLine("La API de geocodificación no ha devuelto una dirección válida.");
                 }
 
@@ -143,9 +118,8 @@ namespace Iei.Extractors
 
                 if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre) && !string.IsNullOrEmpty(province))
                 {
-                    nuevoMonumento.Localidad.Provincia.Nombre = province;
+                    nuevoMonumento.Localidad.Provincia.Nombre = NormalizarProvincia(province);
                 }
-
 
             }
             catch (Exception ex)
@@ -153,7 +127,6 @@ namespace Iei.Extractors
                 Console.WriteLine($"Error en la geocodificación: {ex.Message}");
             }
         }
-
 
         public string ConvertirTipoMonumento(string tipoMonumento)
         {

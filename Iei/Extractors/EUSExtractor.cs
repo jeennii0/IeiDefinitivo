@@ -24,7 +24,11 @@ namespace Iei.Extractors
                 foreach (ModeloJSONOriginal monumento in monumentosJson)
                 {
                     // Validar datos iniciales
-                    if (!ValidarDatosIniciales(monumento)) continue;
+                    if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.DocumentName, monumento.DocumentDescription)) continue;
+
+                    // Validar coordenadas geográficas
+                    if (!ValidacionesMonumentos.ValidarCoordenadas(monumento.Latwgs84, monumento.Lonwgs84)) continue;
+
 
                     // Crear el nuevo objeto Monumento
                     var nuevoMonumento = new Monumento
@@ -58,20 +62,18 @@ namespace Iei.Extractors
                         if (string.IsNullOrEmpty(nuevoMonumento.Localidad.Provincia.Nombre)) nuevoMonumento.Localidad.Provincia.Nombre = province;
                     }
 
-                    // Validar código postal
-                    if (!ValidacionesMonumentos.EsCodigoPostalValido(nuevoMonumento.CodigoPostal))
+                    nuevoMonumento.CodigoPostal = ValidacionesMonumentos.CompletarCodigoPostal(nuevoMonumento.CodigoPostal);
+
+                    string localidad = nuevoMonumento.Localidad.Nombre;
+                    string provincia = nuevoMonumento.Localidad.Provincia.Nombre;
+                    if (!ValidacionesMonumentos.SonDatosDireccionValidos(nuevoMonumento.Nombre, nuevoMonumento.CodigoPostal, nuevoMonumento.Direccion, localidad, provincia)) continue;
+
+                    // Validar códigos postales específicos de Castilla y León
+                    if (!ValidacionesMonumentos.EsCodigoPostalCorrectoParaRegion(nuevoMonumento.CodigoPostal, "EUS"))
                     {
-                        Console.WriteLine($"No hay código postal válido para el monumento {monumento.DocumentName}. Saltando este monumento.");
+                        Console.WriteLine($"Se descarta el monumento '{nuevoMonumento.Nombre}': el código postal '{nuevoMonumento.CodigoPostal}' no es válido para el País Vasco.");
                         continue;
                     }
-
-                    // Validar dirección y localidad
-                    if (!ValidacionesMonumentos.EsMonumentoDireccionValido(nuevoMonumento.Direccion, nuevoMonumento.Localidad.Nombre, nuevoMonumento.Localidad.Provincia.Nombre))
-                    {
-                        Console.WriteLine($"Datos inválidos para el monumento {monumento.DocumentName}. Saltando este monumento.");
-                        continue;
-                    }
-
                     // Agregar el monumento a la lista si pasa las validaciones
                     monumentos.Add(nuevoMonumento);
                 }  // Cierra el ciclo foreach
@@ -85,21 +87,6 @@ namespace Iei.Extractors
             }
         }
 
-
-        private bool ValidarDatosIniciales(ModeloJSONOriginal monumento)
-        {
-            if (!ValidacionesMonumentos.EsMonumentoInicialValido(monumento.DocumentName.ToString(), monumento.DocumentDescription?.ToString())
-                || !ValidacionesMonumentos.ValidarCoordenadas(monumento.Latwgs84, monumento.Lonwgs84)
-                )
-            {
-                Console.WriteLine($"Datos incompletos para el monumento {monumento.DocumentName}. Saltando este monumento.");
-                return false;
-            }
-
-           
-
-            return true;
-        }
 
         public string ConvertirTipoMonumento(string tipoMonumento)
         {

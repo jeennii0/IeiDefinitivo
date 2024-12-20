@@ -13,8 +13,10 @@ namespace Iei.Services
             _context = context;
         }
 
-        public async Task InsertarMonumento(List<Monumento> monumentos)
+        public async Task<int> InsertarMonumento(List<Monumento> monumentos)
         {
+            int monumentosInsertados = 0;  // Variable para contar los monumentos insertados
+
             try
             {
                 foreach (var monumento in monumentos)
@@ -25,7 +27,9 @@ namespace Iei.Services
 
                     if (monumentoExistente != null)
                     {
-                        continue;
+                        // Si el monumento ya existe, se imprime un mensaje y se omite la inserción
+                        Console.WriteLine($"El monumento '{monumento.Nombre}' ya existe en la base de datos. No se insertará.");
+                        continue;  // Omite la inserción de este monumento
                     }
 
                     // Verificar si la Localidad ya existe en la base de datos
@@ -73,6 +77,7 @@ namespace Iei.Services
 
                     // Añadir el monumento a la base de datos
                     _context.Monumento.Add(monumento);
+                    monumentosInsertados++;  // Aumentar el contador solo si se insertó un monumento
                 }
 
                 // Guardar todos los monumentos de una sola vez
@@ -83,6 +88,10 @@ namespace Iei.Services
                 Console.WriteLine($"Error al insertar monumentos: {ex.Message}");
                 // Manejo de errores adecuado (puedes lanzar una excepción o hacer un log)
             }
+
+            return monumentosInsertados;  // Devolver cuántos monumentos se insertaron realmente
         }
+
+    
     }
 }

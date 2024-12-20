@@ -1,14 +1,17 @@
-﻿#PROBLEMAS CON LA ENTREGA 1
+﻿# PROBLEMAS CON LA ENTREGA 1
 
 ## CV [ACABADO]
 - No informan --> No hay conteo de registros insertados, reparados o rechazados. ✅
 - Aligante --> Alicante ✅
 
-## CLE
-- No rechazan erróneos ✅
-- No detectan duplicados --> No se debe insertar más de un registro de un monumento dado [FALTA QUE APAREZCA EL MENSAJE DE LOS DUPLICADOS]
+**Deberían insertarse 13, se insertan 11 porque la api no obtiene dos códigos postales. 
 
-## EUS
+## CLE [ACABADO]
+- No rechazan erróneos ✅
+- No detectan duplicados --> No se debe insertar más de un registro de un monumento dado ✅
+
+- 
+## EUS [ACABADO]
 - informan mal --> Los informes de registros cargados, reparados y rechazados 
 no se corresponden con lo que se pidió (ver formulario de carga en 
 las diapositivas de la segunda parte). Muy pocos grupos han mostrado el 
