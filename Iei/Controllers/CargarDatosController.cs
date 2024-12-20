@@ -52,10 +52,10 @@ namespace Iei.Controllers
                 }
 
                 // Insertamos los monumentos en la base de datos
-                await _monumentoService.InsertarMonumento(monumentos);
+                int monumentosInsertados = await _monumentoService.InsertarMonumento(monumentos);
 
                 // Retornamos una respuesta exitosa
-                return Ok(new { message = $"{monumentos.Count} monumentos insertados correctamente." });
+                return Ok(new { message = $"{monumentosInsertados} monumentos insertados correctamente." });
             }
             catch (Exception ex)
             {
